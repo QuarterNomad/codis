@@ -135,15 +135,19 @@ func (s *Session) Start(d *Router) {
 			return
 		}
 
+		// tasks 保存这个客户端连接上的请求队列，reader 放入 Request，writer 按顺序取出并回写响应。
 		tasks := NewRequestChanBuffer(1024)
 
 		go func() {
+			// writer 协程负责等待每个 Request 的后端响应完成，再把响应写回客户端连接。
 			s.loopWriter(tasks)
 			decrSessions()
 		}()
 
 		go func() {
+			// reader 协程负责从客户端连接读取 Redis 命令，创建 Request，并通过 Router 分发到后端。
 			s.loopReader(tasks, d)
+			// reader 退出后关闭请求队列，通知 writer 处理完剩余响应后结束。
 			tasks.Close()
 		}()
 	})
