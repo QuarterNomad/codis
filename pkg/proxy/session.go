@@ -164,6 +164,7 @@ func (s *Session) loopReader(tasks *RequestChan, d *Router) (err error) {
 	)
 
 	for !s.quit {
+		// 从客户端连接读取一条 Redis MultiBulk 命令，例如 SET user:1 abc 会被解码成 3 个 Resp。
 		multi, err := s.Conn.DecodeMultiBulk()
 		if err != nil {
 			return err
@@ -181,10 +182,15 @@ func (s *Session) loopReader(tasks *RequestChan, d *Router) (err error) {
 		s.LastOpUnix = start.Unix()
 		s.Ops++
 
+		// 将一条 Redis 命令包装成 Request，后续路由、后端转发和响应回写都围绕这个对象进行。
 		r := &Request{}
+		// Multi 保存原始命令参数，普通 SET 请求后续会从 Multi[1] 取 key 做 slot 路由。
 		r.Multi = multi
+		// Batch 用于让 loopWriter 等待后端 BackendConn 读到响应后再回写客户端。
 		r.Batch = &sync.WaitGroup{}
+		// Database 记录当前 Session 选中的 DB，默认是 0，SELECT 命令会修改 s.database。
 		r.Database = s.database
+		// UnixNano 参与请求 seed 计算，用于在并发后端连接中做相对均匀的连接选择。
 		r.UnixNano = start.UnixNano()
 
 		if err := s.handleRequest(r, d); err != nil {
