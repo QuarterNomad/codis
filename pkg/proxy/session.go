@@ -147,6 +147,7 @@ func (s *Session) Start(d *Router) {
 		go func() {
 			// reader 协程负责从客户端连接读取 Redis 命令，创建 Request，并通过 Router 分发到后端。
 			s.loopReader(tasks, d)
+			// reader 退出后关闭请求队列，通知 writer 处理完剩余响应后结束。
 			tasks.Close()
 		}()
 	})
