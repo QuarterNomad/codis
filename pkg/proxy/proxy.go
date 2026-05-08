@@ -406,19 +406,23 @@ func (s *Proxy) serveProxy() {
 		defer func() {
 			eh <- err
 		}()
+		// 数据面入口：循环接受客户端 TCP 连接。
 		for {
 			c, err := s.acceptConn(l)
 			if err != nil {
 				return err
 			}
+			// 一个客户端连接对应一个 Session；Session 内部再读命令、创建 Request 并交给 Router 转发。
 			NewSession(c, s.config).Start(s.router)
 		}
 	}(s.lproxy)
 
 	if d := s.config.BackendPingPeriod.Duration(); d != 0 {
+		// 后台定期 ping 后端连接，维持 BackendConn 状态并尝试恢复 stale 连接。
 		go s.keepAlive(d)
 	}
 
+	// serveProxy 的生命周期由 proxy 关闭信号或 accept 循环错误决定。
 	select {
 	case <-s.exit.C:
 		log.Warnf("[%p] proxy shutdown", s)

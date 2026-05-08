@@ -44,6 +44,8 @@ Donate if you want to help us maintaining this project. Thank you!
 
 ![architecture](doc/pictures/architecture.png)
 
+[Codis Proxy 数据面主链路源码阅读](proxy_data_plane_zh.md)
+
 ## Snapshots
 
 Proxy
